@@ -83,7 +83,7 @@ func eventToPointWithFields(event *kube_api.Event) (*influxdb.Point, error) {
 	// refered https://docs.influxdata.com/influxdb/v1.7/concepts/schema_and_data_layout/#encouraged-schema-design
 	point.Tags["reason"] = event.Reason
 	point.Tags[metrics_core.LabelHostname.Key] = event.Source.Host
-	point.Tags[metrics_core.LabelNamespaceName.Key] = event.Namespace
+	point.Tags[metrics_core.LabelNamespaceName.Key] = event.InvolvedObject.Namespace
 	point.Tags["object_name"] = event.InvolvedObject.Name
 	point.Tags["kind"] = event.InvolvedObject.Kind
 	if event.InvolvedObject.Kind == "Pod" {
