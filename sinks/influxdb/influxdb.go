@@ -101,8 +101,8 @@ func eventToPointWithFields(event *kube_api.Event) (*influxdb.Point, error) {
 	point.Fields["component"] = event.Source.Component
 	point.Fields["count"] = event.Count
 	point.Fields["uid"] = string(event.UID)
-	point.Fields["first_seen"] = fmt.Sprintf("%d", event.FirstTimestamp.Unix())
-	point.Fields["last_seen"] = fmt.Sprintf("%d", event.LastTimestamp.Unix())
+	point.Fields["first_seen"] = event.FirstTimestamp.Unix()
+	point.Fields["last_seen"] = event.LastTimestamp.Unix()
 	point.Fields["object_id"] = string(event.InvolvedObject.UID)
 
 	return &point, nil
