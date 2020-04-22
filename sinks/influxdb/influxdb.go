@@ -82,17 +82,15 @@ func eventToPointWithFields(event *kube_api.Event) (*influxdb.Point, error) {
 	// Additional tags.
 	// refered https://docs.influxdata.com/influxdb/v1.7/concepts/schema_and_data_layout/#encouraged-schema-design
 	point.Tags["reason"] = event.Reason
-	point.Tags[metrics_core.LabelHostname.Key] = event.Source.Host
-	point.Tags[metrics_core.LabelNamespaceName.Key] = event.InvolvedObject.Namespace
+	point.Tags["host"] = event.Source.Host
+	point.Tags["namespace"] = event.InvolvedObject.Namespace
 	point.Tags["object_name"] = event.InvolvedObject.Name
 	point.Tags["kind"] = event.InvolvedObject.Kind
 	if event.InvolvedObject.Kind == "Pod" {
 		deploymentName := ""
 		strs := strings.Split(event.InvolvedObject.Name, "-")
 		if len(strs) >= 3 {
-			for _, s := range strs[0 : len(strs)-2] {
-				deploymentName += s
-			}
+			deploymentName = strings.Join(strs[0:len(strs)-2], "-")
 		}
 		point.Tags["possible_deployment_name"] = deploymentName
 	}
