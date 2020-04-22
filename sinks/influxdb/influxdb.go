@@ -40,7 +40,8 @@ type influxdbSink struct {
 const (
 	eventMeasurementName = "log/events"
 	// Event special tags
-	eventUID = "uid"
+	eventUID  = "uid"
+	eventType = "type"
 	// Value Field name
 	valueField = "value"
 	// Event special tags
@@ -74,19 +75,36 @@ func eventToPointWithFields(event *kube_api.Event) (*influxdb.Point, error) {
 			"message": event.Message,
 		},
 		Tags: map[string]string{
-			eventUID: string(event.UID),
+			eventType: event.Type,
 		},
 	}
-	if event.InvolvedObject.Kind == "Pod" {
-		point.Tags[metrics_core.LabelPodId.Key] = string(event.InvolvedObject.UID)
-	}
-	point.Tags["object_name"] = event.InvolvedObject.Name
-	point.Tags["type"] = event.Type
-	point.Tags["kind"] = event.InvolvedObject.Kind
-	point.Tags["component"] = event.Source.Component
+
+	// Additional tags.
+	// refered https://docs.influxdata.com/influxdb/v1.7/concepts/schema_and_data_layout/#encouraged-schema-design
 	point.Tags["reason"] = event.Reason
-	point.Tags[metrics_core.LabelNamespaceName.Key] = event.Namespace
 	point.Tags[metrics_core.LabelHostname.Key] = event.Source.Host
+	point.Tags[metrics_core.LabelNamespaceName.Key] = event.Namespace
+	point.Tags["object_name"] = event.InvolvedObject.Name
+	point.Tags["kind"] = event.InvolvedObject.Kind
+	if event.InvolvedObject.Kind == "Pod" {
+		deploymentName := ""
+		strs := strings.Split(event.InvolvedObject.Name, "-")
+		if len(strs) >= 3 {
+			for _, s := range strs[0 : len(strs)-2] {
+				deploymentName += s
+			}
+		}
+		point.Tags["possible_deployment_name"] = deploymentName
+	}
+
+	// Additional Fields
+	point.Fields["component"] = event.Source.Component
+	point.Fields["count"] = event.Count
+	point.Fields["uid"] = string(event.UID)
+	point.Fields["first_seen"] = fmt.Sprintf("%d", event.FirstTimestamp.Unix())
+	point.Fields["last_seen"] = fmt.Sprintf("%d", event.LastTimestamp.Unix())
+	point.Fields["object_id"] = string(event.InvolvedObject.UID)
+
 	return &point, nil
 }
 
