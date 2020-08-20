@@ -1,6 +1,6 @@
 all: build
 
-PREFIX?=registry.aliyuncs.com/acs
+PREFIX?=maoqide
 FLAGS=
 ARCH?=amd64
 ALL_ARCHITECTURES=amd64 arm arm64 ppc64le s390x
