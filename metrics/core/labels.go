@@ -28,6 +28,14 @@ var (
 	MetricSetTypeNode            = "node"
 	MetricSetTypeCluster         = "cluster"
 
+	LabelObjectID = LabelDescriptor{
+		Key:         "object_id",
+		Description: "The unique ID of the object",
+	}
+	LabelObjectName = LabelDescriptor{
+		Key:         "object_name",
+		Description: "The unique ID of the object",
+	}
 	LabelPodId = LabelDescriptor{
 		Key:         "pod_id",
 		Description: "The unique ID of the pod",

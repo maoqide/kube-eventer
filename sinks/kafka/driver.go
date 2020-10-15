@@ -58,12 +58,18 @@ func eventToPoint(event *kube_api.Event) (*KafkaSinkPoint, error) {
 		EventValue:     value,
 		EventTags: map[string]string{
 			"eventID": string(event.UID),
+			"kind":    event.InvolvedObject.Kind,
+			"type":    event.Type,
+			"reason":  event.Reason,
 		},
 	}
-	if event.InvolvedObject.Kind == "Pod" {
-		point.EventTags[core.LabelPodId.Key] = string(event.InvolvedObject.UID)
-		point.EventTags[core.LabelPodName.Key] = event.InvolvedObject.Name
+
+	if event.InvolvedObject.Name != "" {
+		point.EventTags[core.LabelObjectID.Key] = string(event.InvolvedObject.UID)
+		point.EventTags[core.LabelObjectName.Key] = event.InvolvedObject.Name
+		point.EventTags[core.LabelNamespaceName.Key] = event.InvolvedObject.Namespace
 	}
+
 	point.EventTags[core.LabelHostname.Key] = event.Source.Host
 	return &point, nil
 }
