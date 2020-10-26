@@ -44,6 +44,10 @@ var (
 		Key:         "pod_name",
 		Description: "The name of the pod",
 	}
+	LabelPodIP = LabelDescriptor{
+		Key:         "pod_ip",
+		Description: "The ip of the pod if exists",
+	}
 	LabelNamespaceName = LabelDescriptor{
 		Key:         "namespace_name",
 		Description: "The name of the namespace",

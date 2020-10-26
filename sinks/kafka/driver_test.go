@@ -84,8 +84,15 @@ func TestStoreMultipleEventsInput(t *testing.T) {
 	event2 := kube_api.Event{
 		Message:        "event2",
 		Count:          101,
+		Type:           "WARNING",
+		Reason:         "Unhealthy",
 		LastTimestamp:  metav1.NewTime(now),
 		FirstTimestamp: metav1.NewTime(now),
+		InvolvedObject: kube_api.ObjectReference{
+			Kind:      "Pod",
+			Namespace: "default",
+			Name:      "xxx-xx",
+		},
 	}
 	data := event_core.EventBatch{
 		Timestamp: timestamp,
