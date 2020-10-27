@@ -22,7 +22,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
-	kubeclient "k8s.io/client-go/kubernetes"
 	kube_rest "k8s.io/client-go/rest"
 	kubeClientCmd "k8s.io/client-go/tools/clientcmd"
 	kubeClientCmdApi "k8s.io/client-go/tools/clientcmd/api"
@@ -159,7 +158,7 @@ func GetKubernetesClient(uri *url.URL) (client kubernetes.Interface, err error) 
 	if err != nil {
 		return nil, err
 	}
-	kubeClient, err := kubeclient.NewForConfig(kubeConfig)
+	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
 		return nil, err
 	}

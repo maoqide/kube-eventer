@@ -18,18 +18,24 @@ import (
 	"bytes"
 	"fmt"
 
+	kubecommon "github.com/AliyunContainerService/kube-eventer/common/kubernetes"
 	"github.com/AliyunContainerService/kube-eventer/core"
+	corev1 "k8s.io/api/core/v1"
+
 	"k8s.io/klog"
 )
 
+// LogSink ...
 type LogSink struct {
 }
 
-func (this *LogSink) Name() string {
+// Name sink name
+func (sink *LogSink) Name() string {
 	return "LogSink"
 }
 
-func (this *LogSink) Stop() {
+// Stop do nothing
+func (sink *LogSink) Stop() {
 	// Do nothing.
 }
 
@@ -38,14 +44,24 @@ func batchToString(batch *core.EventBatch) string {
 	buffer.WriteString(fmt.Sprintf("EventBatch     Timestamp: %s\n", batch.Timestamp))
 	for _, event := range batch.Events {
 		buffer.WriteString(fmt.Sprintf("%++v   %s (cnt:%d): %s\n", event, event.LastTimestamp, event.Count, event.Message))
+		if event.InvolvedObject.Kind == "Pod" {
+			i, ok, _ := kubecommon.Cache().PodIndexer().GetByKey(fmt.Sprintf("%s/%s", event.Namespace, event.InvolvedObject.Name))
+			if ok {
+				pod := i.(*corev1.Pod)
+				podIP := pod.Status.PodIP
+				buffer.WriteString(fmt.Sprintf("PodName: %s, Namespace: %s, PodIP: %s\n", event.InvolvedObject.Name, event.Namespace, podIP))
+			}
+		}
 	}
 	return buffer.String()
 }
 
-func (this *LogSink) ExportEvents(batch *core.EventBatch) {
+// ExportEvents ...
+func (sink *LogSink) ExportEvents(batch *core.EventBatch) {
 	klog.Info(batchToString(batch))
 }
 
+// CreateLogSink create log sink
 func CreateLogSink() (*LogSink, error) {
 	return &LogSink{}, nil
 }

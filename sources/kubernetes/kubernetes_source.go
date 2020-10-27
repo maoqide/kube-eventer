@@ -19,19 +19,20 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-
-	"github.com/AliyunContainerService/kube-eventer/common/kubernetes"
-	"github.com/AliyunContainerService/kube-eventer/core"
 	kubeapi "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubewatch "k8s.io/apimachinery/pkg/watch"
-
+	"k8s.io/client-go/kubernetes"
 	kubev1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/klog"
+
+	kubecommon "github.com/AliyunContainerService/kube-eventer/common/kubernetes"
+	"github.com/AliyunContainerService/kube-eventer/core"
 )
 
 const (
-	// Number of object pointers. Big enough so it won't be hit anytime soon with reasonable GetNewEvents frequency.
+	// LocalEventsBufferSize number of object pointers.
+	// Big enough so it won't be hit anytime soon with reasonable GetNewEvents frequency.
 	LocalEventsBufferSize = 100000
 )
 
@@ -66,8 +67,8 @@ func init() {
 	prometheus.MustRegister(scrapEventsDuration)
 }
 
-// Implements core.EventSource interface.
-type KubernetesEventSource struct {
+// EventSource Implements core.EventSource interface.
+type EventSource struct {
 	// Large local buffer, periodically read.
 	localEventsBuffer chan *kubeapi.Event
 
@@ -76,7 +77,8 @@ type KubernetesEventSource struct {
 	eventClient kubev1core.EventInterface
 }
 
-func (this *KubernetesEventSource) GetNewEvents() *core.EventBatch {
+// GetNewEvents ..
+func (source *EventSource) GetNewEvents() *core.EventBatch {
 	startTime := time.Now()
 	defer func() {
 		lastEventTimestamp.Set(float64(time.Now().Unix()))
@@ -90,7 +92,7 @@ func (this *KubernetesEventSource) GetNewEvents() *core.EventBatch {
 event_loop:
 	for {
 		select {
-		case event := <-this.localEventsBuffer:
+		case event := <-source.localEventsBuffer:
 			result.Events = append(result.Events, event)
 		default:
 			break event_loop
@@ -102,10 +104,10 @@ event_loop:
 	return &result
 }
 
-func (this *KubernetesEventSource) watch() {
+func (source *EventSource) watch() {
 	// Outer loop, for reconnections.
 	for {
-		events, err := this.eventClient.List(metav1.ListOptions{})
+		events, err := source.eventClient.List(metav1.ListOptions{})
 		if err != nil {
 			klog.Errorf("Failed to load events: %v", err)
 			time.Sleep(time.Second)
@@ -115,7 +117,7 @@ func (this *KubernetesEventSource) watch() {
 
 		resourceVersion := events.ResourceVersion
 
-		watcher, err := this.eventClient.Watch(
+		watcher, err := source.eventClient.Watch(
 			metav1.ListOptions{
 				Watch:           true,
 				ResourceVersion: resourceVersion})
@@ -149,7 +151,7 @@ func (this *KubernetesEventSource) watch() {
 					switch watchUpdate.Type {
 					case kubewatch.Added, kubewatch.Modified:
 						select {
-						case this.localEventsBuffer <- event:
+						case source.localEventsBuffer <- event:
 							// Ok, buffer not full.
 						default:
 							// Buffer full, need to drop the event.
@@ -164,7 +166,7 @@ func (this *KubernetesEventSource) watch() {
 					klog.Errorf("Wrong object received: %v", watchUpdate)
 				}
 
-			case <-this.stopChannel:
+			case <-source.stopChannel:
 				watcher.Stop()
 				klog.Infof("Event watching stopped")
 				return
@@ -173,18 +175,24 @@ func (this *KubernetesEventSource) watch() {
 	}
 }
 
-func NewKubernetesSource(uri *url.URL) (*KubernetesEventSource, error) {
-	kubeClient, err := kubernetes.GetKubernetesClient(uri)
+func (source *EventSource) startCache(client *kubernetes.Interface) {
+	kubecommon.BuildCacheFactory(client)
+}
+
+// NewKubernetesSource return kubernetes.EventSource
+func NewKubernetesSource(uri *url.URL) (*EventSource, error) {
+	kubeClient, err := kubecommon.GetKubernetesClient(uri)
 	if err != nil {
 		klog.Errorf("Failed to create kubernetes client,because of %v", err)
 		return nil, err
 	}
 	eventClient := kubeClient.CoreV1().Events(kubeapi.NamespaceAll)
-	result := KubernetesEventSource{
+	result := EventSource{
 		localEventsBuffer: make(chan *kubeapi.Event, LocalEventsBufferSize),
 		stopChannel:       make(chan struct{}),
 		eventClient:       eventClient,
 	}
 	go result.watch()
+	result.startCache(&kubeClient)
 	return &result, nil
 }
