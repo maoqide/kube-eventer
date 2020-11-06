@@ -19,6 +19,9 @@ fmt:
 build: clean
 	GOARCH=$(ARCH) CGO_ENABLED=0 go build -ldflags "$(KUBE_EVENTER_LDFLAGS)" -o kube-eventer  github.com/AliyunContainerService/kube-eventer
 
+run-dev:
+	go run eventer.go --source='kubernetes:http://127.0.0.1:8001?inClusterConfig=false' --sink=log
+
 sanitize:
 	hack/check_gofmt.sh
 	hack/run_vet.sh

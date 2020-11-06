@@ -16,6 +16,7 @@ package kafka
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"sync"
 	"time"
@@ -23,9 +24,10 @@ import (
 	"k8s.io/klog"
 
 	kafka_common "github.com/AliyunContainerService/kube-eventer/common/kafka"
+	kubecommon "github.com/AliyunContainerService/kube-eventer/common/kubernetes"
 	event_core "github.com/AliyunContainerService/kube-eventer/core"
 	"github.com/AliyunContainerService/kube-eventer/metrics/core"
-	kube_api "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type KafkaSinkPoint struct {
@@ -39,7 +41,7 @@ type kafkaSink struct {
 	sync.RWMutex
 }
 
-func getEventValue(event *kube_api.Event) (string, error) {
+func getEventValue(event *corev1.Event) (string, error) {
 	// TODO: check whether indenting is required.
 	bytes, err := json.MarshalIndent(event, "", " ")
 	if err != nil {
@@ -48,7 +50,7 @@ func getEventValue(event *kube_api.Event) (string, error) {
 	return string(bytes), nil
 }
 
-func eventToPoint(event *kube_api.Event) (*KafkaSinkPoint, error) {
+func eventToPoint(event *corev1.Event) (*KafkaSinkPoint, error) {
 	value, err := getEventValue(event)
 	if err != nil {
 		return nil, err
@@ -68,7 +70,13 @@ func eventToPoint(event *kube_api.Event) (*KafkaSinkPoint, error) {
 		point.EventTags[core.LabelObjectID.Key] = string(event.InvolvedObject.UID)
 		point.EventTags[core.LabelObjectName.Key] = event.InvolvedObject.Name
 		point.EventTags[core.LabelNamespaceName.Key] = event.InvolvedObject.Namespace
-		point.EventTags[core.LabelPodIP.Key] = ""
+	}
+	if event.InvolvedObject.Kind == "Pod" {
+		i, ok, _ := kubecommon.Cache().PodIndexer().GetByKey(fmt.Sprintf("%s/%s", event.Namespace, event.InvolvedObject.Name))
+		if ok {
+			pod := i.(*corev1.Pod)
+			point.EventTags[core.LabelPodIP.Key] = pod.Status.PodIP
+		}
 	}
 
 	point.EventTags[core.LabelHostname.Key] = event.Source.Host
